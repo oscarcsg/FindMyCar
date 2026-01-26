@@ -1,0 +1,41 @@
+# --- Build y Gradle (Archivos generados al compilar) ---
+.gradle/
+build/
+/app/build/
+!libs/*.jar  # Esto permite subir librerías externas si algún día las usas
+
+# --- Configuración Local (CRÍTICO: NO SUBIR) ---
+local.properties
+# Archivos de logs de errores
+*.log
+captures/
+
+# --- Android Studio / IntelliJ IDEA (.idea) ---
+# Estos son los que generan más conflictos si se suben.
+# Es mejor ignorarlos y que Android Studio los regenere en cada PC.
+.idea/workspace.xml
+.idea/libraries/
+.idea/caches/
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/shelf/
+.idea/deployment.xml
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+*.iml
+
+# --- Archivos de Sistema Operativo (Basura) ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# --- Archivos C++ / NDK (No los usas, pero por si acaso) ---
+.externalNativeBuild
+.cxx
+
+# --- SEGURIDAD (Para cuando firmes la app en el futuro) ---
+*.jks
+*.keystore
+*.key
+*.p12
