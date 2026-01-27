@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="park_btn">GUARDAR APARCAMIENTO</string>
+    <string name="content_center_map_btn">Centrar mapa</string>
+    <string name="floor_input_txt">Planta</string>
+    <string name="parking_lot_input_txt">Plaza de aparcamiento</string>
+    <string name="config_btn">Ajustes</string>
+    <string name="parking_details_lbl">Detalles del aparcamiento</string>
+    <string name="confirm_parking_btn">CONFIRMAR UBICACIÓN</string>
+    <string name="config_lbl">Configuración</string>
+    <string name="recordatory_switch_lbl">Recordatorio al alejarme</string>
+    <string name="open_parking_details_lbl">Abrir siempre el panel de detalles del aparcamiento</string>
+    <string name="confirm_btn">CONFIRMAR</string>
+</resources>

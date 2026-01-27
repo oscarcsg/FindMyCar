@@ -1,3 +1,14 @@
 <resources>
-    <string name="app_name">FindMyCar</string>
+    <string name="app_name" translatable="false">FindMyCar</string>
+    <string name="park_btn">SAVE PARKING</string>
+    <string name="content_center_map_btn">Center map</string>
+    <string name="floor_input_txt">Floor</string>
+    <string name="parking_lot_input_txt">Parking Lot</string>
+    <string name="config_btn">Settings</string>
+    <string name="parking_details_lbl">Parking details</string>
+    <string name="confirm_parking_btn">CONFIRM UBICATION</string>
+    <string name="config_lbl">Configuration</string>
+    <string name="recordatory_switch_lbl">Walk-away alert</string>
+    <string name="open_parking_details_lbl">Always open the parking details panel</string>
+    <string name="confirm_btn">CONFIRM</string>
 </resources>
