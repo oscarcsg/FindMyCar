@@ -19,6 +19,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -153,6 +154,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void showParkingBottomSheet(View view) {
+        BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this);
+
+        View parkingSheetView = getLayoutInflater().inflate(R.layout.layout_bottom_sheet, null);
+        bottomSheetDialog.setContentView(parkingSheetView);
+
+        // PROVISIONAL
+        parkingSheetView.findViewById(R.id.confirmUbiBtn).setOnClickListener(v -> {
+            Toast.makeText(this, "Guardando ubicación...", Toast.LENGTH_SHORT).show();
+            bottomSheetDialog.dismiss();
+        });
+
+        bottomSheetDialog.show();
     }
 
 

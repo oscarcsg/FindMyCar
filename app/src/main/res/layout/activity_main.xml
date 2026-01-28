@@ -51,12 +51,13 @@
         android:layout_width="0dp"
         android:layout_height="60dp"
         android:layout_margin="16dp"
+        android:onClick="showParkingBottomSheet"
         android:text="@string/park_btn"
         android:textSize="16sp"
         android:textStyle="bold"
         app:cornerRadius="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
