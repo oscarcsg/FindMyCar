@@ -2,8 +2,8 @@ package com.oscarvela.findmycar;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -16,16 +16,19 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import org.osmdroid.config.Configuration;
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.tileprovider.tilesource.XYTileSource;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private MapView map = null;
+    private MyLocationNewOverlay myLocationOverlay;
+
     private final int REQUEST_PERMISSIONS_REQUEST_CODE = 1;
 
     @Override
@@ -44,6 +47,11 @@ public class MainActivity extends AppCompatActivity {
 
         // Inicializar el mapa
         map = findViewById(R.id.map);
+
+        // Activar el zoom pellizcando
+        map.setMultiTouchControls(true);
+
+        // Estilo del mapa
         XYTileSource cartoDbVoyager = new XYTileSource(
             "CartoDB-Voyager",// Nombre
             0, 20,     // Zoom mínimo y máximo
@@ -65,6 +73,17 @@ public class MainActivity extends AppCompatActivity {
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE // Necesario para android antiguo
         });
+
+        // Activar ubicación actual
+        GpsMyLocationProvider provider = new GpsMyLocationProvider(this);
+        provider.addLocationSource(LocationManager.NETWORK_PROVIDER);
+
+        myLocationOverlay = new MyLocationNewOverlay(provider, map);
+        myLocationOverlay.enableMyLocation(); // Activar el punto azul de la ubicación actual
+        myLocationOverlay.enableFollowLocation(); // El mapa sigue al usuario al inicio
+        myLocationOverlay.setDrawAccuracyEnabled(true); // Dibujar radio de precisión
+
+        map.getOverlays().add(myLocationOverlay);
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
