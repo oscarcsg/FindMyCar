@@ -3,6 +3,8 @@ package com.oscarvela.findmycar;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.View;
@@ -131,6 +133,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void showConfigDialog(View view) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        // Inflar layout
+        View configDialogView = getLayoutInflater().inflate(R.layout.dialog_configuration, null);
+        builder.setView(configDialogView);
+
+        AlertDialog dialog = builder.create();
+
+        // Fondo transparente
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        // Dar acción al botón "Confirmar" del panel de configuración para que cierre el dialog (PROVISIONAL)
+        configDialogView.findViewById(R.id.confirmBtn).setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 
     public void showParkingBottomSheet(View view) {

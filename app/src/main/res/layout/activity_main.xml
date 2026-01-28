@@ -29,9 +29,10 @@
         android:layout_marginEnd="16dp"
         android:clickable="true"
         android:contentDescription="@string/config_btn"
+        android:onClick="showConfigDialog"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@android:drawable/ic_menu_manage"/>
+        app:srcCompat="@android:drawable/ic_menu_manage" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnCenter"
