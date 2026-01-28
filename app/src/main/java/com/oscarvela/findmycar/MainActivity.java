@@ -1,9 +1,11 @@
 package com.oscarvela.findmycar;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -14,6 +16,9 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.XYTileSource;
@@ -31,6 +36,10 @@ public class MainActivity extends AppCompatActivity {
 
     private final int REQUEST_PERMISSIONS_REQUEST_CODE = 1;
 
+    // Botones y demás elementos gráficos de la interfaz
+    private MaterialButton saveParkingBtn;
+    private FloatingActionButton configBtn, centerLocationBtn;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,6 +54,27 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
+        // Linkar la parte gráfica con la lógica
+        saveParkingBtn = findViewById(R.id.btnPark);
+        configBtn = findViewById(R.id.btnConfig);
+        centerLocationBtn = findViewById(R.id.btnCenter);
+
+        // Iniciar el mapa
+        initMap();
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+    }
+
+
+
+    // ------------------------ //
+    //           MAPA           //
+    // ------------------------ //
+    private void initMap() {
         // Inicializar el mapa
         map = findViewById(R.id.map);
 
@@ -53,15 +83,15 @@ public class MainActivity extends AppCompatActivity {
 
         // Estilo del mapa
         XYTileSource cartoDbVoyager = new XYTileSource(
-            "CartoDB-Voyager",// Nombre
-            0, 20,     // Zoom mínimo y máximo
-            256,                     // Tamaño de los cuadros (pixels)
-            ".png",                  // Formato de imagen
-            new String[]{
-                    "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
-                    "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
-                    "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
-            });
+                "CartoDB-Voyager",// Nombre
+                0, 20,     // Zoom mínimo y máximo
+                256,                     // Tamaño de los cuadros (pixels)
+                ".png",                  // Formato de imagen
+                new String[]{
+                        "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
+                        "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
+                        "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
+                });
         map.setTileSource(cartoDbVoyager);
 
         // Centrar el mapa en un punto por defecto (Málaga por ahora), luego pondré para que coja la ubi del usuario
@@ -84,13 +114,29 @@ public class MainActivity extends AppCompatActivity {
         myLocationOverlay.setDrawAccuracyEnabled(true); // Dibujar radio de precisión
 
         map.getOverlays().add(myLocationOverlay);
-
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
     }
+
+
+
+    // ------------------------ //
+    //         ACTIONS          //
+    // ------------------------ //
+    public void centerLocationAction(View view) {
+        if (myLocationOverlay.getMyLocation() != null) {
+            map.getController().animateTo(myLocationOverlay.getMyLocation());
+            map.getController().setZoom(18.0);
+        } else {
+            Toast.makeText(this, "Esperando señal GPS...", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void showConfigDialog(View view) {
+    }
+
+    public void showParkingBottomSheet(View view) {
+    }
+
+
 
     // ------------------------ //
     //      CICLO DE VIDA       //
@@ -107,6 +153,8 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         if (map != null) map.onResume();
     }
+
+
 
     // ------------------------ //
     //         PERMISOS         //
