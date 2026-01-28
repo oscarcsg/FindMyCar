@@ -11,4 +11,8 @@
     <string name="recordatory_switch_lbl">Recordatorio al alejarme</string>
     <string name="open_parking_details_lbl">Abrir siempre el panel de detalles del aparcamiento</string>
     <string name="confirm_btn">CONFIRMAR</string>
+    <string name="marker_default">¡Aquí está tu coche!</string>
+    <string name="marker_floor_only">Planta: %1$s</string>
+    <string name="marker_spot_only">Plaza: %1$s</string>
+    <string name="marker_full">Planta: %1$s, Plaza: %2$s</string>
 </resources>

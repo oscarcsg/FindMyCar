@@ -2,6 +2,7 @@ package com.oscarvela.findmycar;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -19,34 +20,45 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.android.material.bottomsheet.BottomSheetDialog;
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.oscarvela.findmycar.parking.ParkingBottomSheet;
+import com.oscarvela.findmycar.parking.ParkingListener;
 
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.XYTileSource;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements ParkingListener {
+    // ------------------------ //
+    //         ATRIBUTOS        //
+    // ------------------------ //
     private MapView map = null;
     private MyLocationNewOverlay myLocationOverlay;
+    private Marker parkingMarker = null;
 
     private final int REQUEST_PERMISSIONS_REQUEST_CODE = 1;
 
+    private SharedPreferences prefs;
+
     // Botones y demás elementos gráficos de la interfaz
-    private MaterialButton saveParkingBtn;
-    private FloatingActionButton configBtn, centerLocationBtn;
+//    private MaterialButton saveParkingBtn;
+//    private FloatingActionButton configBtn, centerLocationBtn;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
+
+        // Iniciar las preferencias
+        prefs = getSharedPreferences("FindMyCarPrefs", MODE_PRIVATE);
 
         // Cargar OSM antes de inflar el layout
         Configuration.getInstance().load(
@@ -58,9 +70,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Linkar la parte gráfica con la lógica
-        saveParkingBtn = findViewById(R.id.btnPark);
-        configBtn = findViewById(R.id.btnConfig);
-        centerLocationBtn = findViewById(R.id.btnCenter);
+//        saveParkingBtn = findViewById(R.id.btnPark);
+//        configBtn = findViewById(R.id.btnConfig);
+//        centerLocationBtn = findViewById(R.id.btnCenter);
 
         // Iniciar el mapa
         initMap();
@@ -86,15 +98,16 @@ public class MainActivity extends AppCompatActivity {
 
         // Estilo del mapa
         XYTileSource cartoDbVoyager = new XYTileSource(
-                "CartoDB-Voyager",// Nombre
-                0, 20,     // Zoom mínimo y máximo
-                256,                     // Tamaño de los cuadros (pixels)
-                ".png",                  // Formato de imagen
-                new String[]{
-                        "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
-                        "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
-                        "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
-                });
+            "CartoDB-Voyager",// Nombre
+            0, 20,     // Zoom mínimo y máximo
+            256,                     // Tamaño de los cuadros (pixels)
+            ".png",                  // Formato de imagen
+            new String[]{
+                    "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
+                    "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
+                    "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
+            }
+        );
         map.setTileSource(cartoDbVoyager);
 
         // Centrar el mapa en un punto por defecto (Málaga por ahora), luego pondré para que coja la ubi del usuario
@@ -117,6 +130,8 @@ public class MainActivity extends AppCompatActivity {
         myLocationOverlay.setDrawAccuracyEnabled(true); // Dibujar radio de precisión
 
         map.getOverlays().add(myLocationOverlay);
+
+        checkIfParkedAndRestore();
     }
 
 
@@ -154,18 +169,86 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void showParkingBottomSheet(View view) {
-        BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this);
+        // Verificación de GPS
+        if (myLocationOverlay == null || myLocationOverlay.getMyLocation() == null) {
+            Toast.makeText(this, "Espera a tener señal GPS", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        View parkingSheetView = getLayoutInflater().inflate(R.layout.layout_bottom_sheet, null);
-        bottomSheetDialog.setContentView(parkingSheetView);
+        // Crear la instancia del panel de los datos del parking
+        ParkingBottomSheet bottomSheet = new ParkingBottomSheet();
+        bottomSheet.setListener(this); // Decirle que será MainActivity quien escuchará los eventos que lance
 
-        // PROVISIONAL
-        parkingSheetView.findViewById(R.id.confirmUbiBtn).setOnClickListener(v -> {
-            Toast.makeText(this, "Guardando ubicación...", Toast.LENGTH_SHORT).show();
-            bottomSheetDialog.dismiss();
-        });
+        bottomSheet.show(getSupportFragmentManager(), "ParkingSheet");
+    }
 
-        bottomSheetDialog.show();
+
+
+    // ------------------------ //
+    //         METHODS          //
+    // ------------------------ //
+    private void drawParkingMarker(GeoPoint location, String floor, String spot) {
+        // Quitar el marcador anterior si existe
+        if (parkingMarker != null) map.getOverlays().remove(parkingMarker);
+
+        // Crear un nuevo marcador
+        parkingMarker = new Marker(map);
+        parkingMarker.setPosition(location);
+
+        // Ajustar la posicion del icono del marcador
+        parkingMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
+
+        // Ponerle icono y titulo
+        parkingMarker.setIcon(ContextCompat.getDrawable(this, R.drawable.ic_car_marker));
+        parkingMarker.setTitle(formatMarkerMsg(floor, spot));
+
+        map.getOverlays().add(parkingMarker);
+        map.invalidate(); // Obliga al mapa a redibujarse
+    }
+
+    private String formatMarkerMsg(String floor, String spot) {
+        boolean hasFloor = !floor.isEmpty();
+        boolean hasSpot = !spot.isEmpty();
+
+        // Caso 1: tiene planta y plaza
+        if (hasFloor && hasSpot) return getString(R.string.marker_full, floor, spot);
+
+        // Caso 2: tiene solo planta
+        if (hasFloor) return getString(R.string.marker_floor_only, floor);
+
+        // Caso 3: tiene solo plaza
+        if (hasSpot) return getString(R.string.marker_spot_only, spot);
+
+        // Caso 4: no tiene nada
+        return getString(R.string.marker_default);
+    }
+
+    // Guardar datos en la memoria del telefono
+    private void saveParkingData(double lat, double lon, String floor, String spot) {
+        SharedPreferences.Editor editor = prefs.edit();
+
+        editor.putFloat("LAT", (float) lat);
+        editor.putFloat("LON", (float) lon);
+        editor.putString("FLOOR", floor);
+        editor.putString("SPOT", spot);
+        editor.putBoolean("IS_PARKED", true);
+
+        editor.apply();
+    }
+
+    private void checkIfParkedAndRestore() {
+        if (prefs.getBoolean("IS_PARKED", false)) {
+            double lat = prefs.getFloat("LAT", 0);
+            double lon = prefs.getFloat("LON", 0);
+
+            if (lat != 0 && lon != 0) {
+                drawParkingMarker(
+                    new GeoPoint(lat, lon),
+                    prefs.getString("FLOOR", ""),
+                    prefs.getString("SPOT", "")
+                );
+            }
+        }
     }
 
 
@@ -215,8 +298,32 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Permisos concedidos. Cargando ubicación...", Toast.LENGTH_SHORT).show();
                 // Aquí irá la activación del "Mi ubicación"
             } else {
-                Toast.makeText(this, "Necesitas dar permisos para usar la app.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Necesitas dar permisos para usar la app", Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+
+
+    // ------------------------ //
+    //     IMPLEMENTACIONES     //
+    // ------------------------ //
+    @Override
+    public void onParkingConfirmed(String floor, String spot) {
+        // Ubicación actual
+        GeoPoint currentLocation = myLocationOverlay.getMyLocation();
+
+        // Guardar la ubicación
+        saveParkingData(
+            currentLocation.getLatitude(),
+            currentLocation.getLongitude(),
+            floor,
+            spot
+        );
+
+        // Pintar en el mapa
+        drawParkingMarker(currentLocation, floor, spot);
+
+        Toast.makeText(this, "¡Aparcado en Planta " + floor + "!", Toast.LENGTH_SHORT).show();
     }
 }
