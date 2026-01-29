@@ -97,10 +97,11 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         map.setTileSource(cartoDbVoyager);
 
         map.getController().setZoom(18.0);
-        map.getController().setCenter(new GeoPoint(36.72016, -4.42034));
 
         if (hasFineLocationPermission()) {
             activateLocationOverlay();
+            if (myLocationOverlay != null) map.getController().setCenter(myLocationOverlay.getMyLocation());
+            else map.getController().setCenter(new GeoPoint(36.72016, -4.42034));
         } else {
             requestFineLocationPermission();
         }
