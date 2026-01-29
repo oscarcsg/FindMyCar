@@ -45,6 +45,8 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.Polyline;
+import org.osmdroid.views.overlay.compass.CompassOverlay;
+import org.osmdroid.views.overlay.compass.InternalCompassOrientationProvider;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.IMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
@@ -63,7 +65,7 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
     private GeofencingClient geofencingClient;
     private SharedPreferences prefs;
     private long lastRouteUpdateTime = 0;
-    private boolean initialRouteZoomDone = false; // Flag para controlar el zoom inicial
+    private boolean initialRouteZoomDone = false;
     private final int REQUEST_FINE_LOCATION_PERMISSIONS_REQUEST_CODE = 3;
 
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -89,10 +91,17 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
     private void initMap() {
         map = findViewById(R.id.map);
         map.setMultiTouchControls(true);
+
         XYTileSource cartoDbVoyager = new XYTileSource("CartoDB-Voyager", 0, 20, 256, ".png", new String[]{"https://a.basemaps.cartocdn.com/rastertiles/voyager/", "https://b.basemaps.cartocdn.com/rastertiles/voyager/", "https://c.basemaps.cartocdn.com/rastertiles/voyager/"});
         map.setTileSource(cartoDbVoyager);
+
         map.getController().setZoom(18.0);
         map.getController().setCenter(new GeoPoint(36.72016, -4.42034));
+
+        CompassOverlay compassOverlay = new CompassOverlay(this, new InternalCompassOrientationProvider(this), map);
+        compassOverlay.enableCompass();
+        map.getOverlays().add(compassOverlay);
+
         if (hasFineLocationPermission()) {
             activateLocationOverlay();
         } else {
@@ -123,10 +132,25 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
 
     public void centerLocationAction(View view) {
         if (myLocationOverlay != null && myLocationOverlay.getMyLocation() != null) {
+            map.setMapOrientation(0);
             map.getController().animateTo(myLocationOverlay.getMyLocation());
             map.getController().setZoom(18.0);
         } else {
             Toast.makeText(this, getString(R.string.toast_waiting_for_gps_or_permission), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void rotateLeft(View view) {
+        if (map != null) {
+            float currentOrientation = map.getMapOrientation();
+            map.setMapOrientation(currentOrientation - 15);
+        }
+    }
+
+    public void rotateRight(View view) {
+        if (map != null) {
+            float currentOrientation = map.getMapOrientation();
+            map.setMapOrientation(currentOrientation + 15);
         }
     }
 
@@ -231,7 +255,8 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
                 roadOverlay.getOutlinePaint().setStrokeWidth(10);
                 map.getOverlays().add(0, roadOverlay);
 
-                if (!initialRouteZoomDone) {
+                double distance = startPoint.distanceToAsDouble(endPoint);
+                if (!initialRouteZoomDone && distance > 50) {
                     map.zoomToBoundingBox(road.mBoundingBox, true, 100);
                     initialRouteZoomDone = true;
 
@@ -360,7 +385,7 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
             Toast.makeText(this, getString(R.string.toast_could_not_get_location), Toast.LENGTH_SHORT).show();
             return;
         }
-        initialRouteZoomDone = false; // Reinicia el flag para el nuevo aparcamiento
+        initialRouteZoomDone = false;
         saveParkingData(currentLocation.getLatitude(), currentLocation.getLongitude(), floor, spot);
         drawParkingMarker(currentLocation, floor, spot);
         addGeofence(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
@@ -370,7 +395,7 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
 
     @Override
     public void onParkingDeleted() {
-        initialRouteZoomDone = false; // Reinicia el flag
+        initialRouteZoomDone = false;
         SharedPreferences.Editor editor = prefs.edit();
         editor.remove("LAT");
         editor.remove("LON");

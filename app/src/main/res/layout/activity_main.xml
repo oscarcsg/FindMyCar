@@ -34,6 +34,37 @@
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@android:drawable/ic_menu_manage" />
 
+    <LinearLayout
+        android:id="@+id/rotation_buttons_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/btnCenter"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btnRotateLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:onClick="rotateLeft"
+            app:fabSize="mini"
+            app:srcCompat="@drawable/ic_rotate_left"
+            android:contentDescription="Rotate Left" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btnRotateRight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="rotateRight"
+            app:fabSize="mini"
+            app:srcCompat="@drawable/ic_rotate_right"
+            android:contentDescription="Rotate Right" />
+
+    </LinearLayout>
+
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnCenter"
         android:layout_width="wrap_content"
