@@ -9,10 +9,13 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.location.Location;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
@@ -33,45 +36,49 @@ import com.oscarvela.findmycar.parking.ParkingBottomSheet;
 import com.oscarvela.findmycar.parking.ParkingListener;
 import com.oscarvela.findmycar.reminders.GeofenceHelper;
 
+import org.osmdroid.bonuspack.routing.OSRMRoadManager;
+import org.osmdroid.bonuspack.routing.Road;
+import org.osmdroid.bonuspack.routing.RoadManager;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.XYTileSource;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
+import org.osmdroid.views.overlay.mylocation.IMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
+import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class MainActivity extends AppCompatActivity implements ParkingListener {
-    // ------------------------ //
-    //         ATRIBUTOS        //
-    // ------------------------ //
+    // Atributos
     private static final String TAG = "MainActivity";
     private MapView map = null;
     private MyLocationNewOverlay myLocationOverlay;
     private Marker parkingMarker = null;
+    private Polyline roadOverlay = null;
     private GeofencingClient geofencingClient;
     private SharedPreferences prefs;
+    private long lastRouteUpdateTime = 0;
+    private boolean initialRouteZoomDone = false; // Flag para controlar el zoom inicial
     private final int REQUEST_FINE_LOCATION_PERMISSIONS_REQUEST_CODE = 3;
+
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-
         prefs = getSharedPreferences("FindMyCarPrefs", MODE_PRIVATE);
-
-        Configuration.getInstance().load(
-                getApplicationContext(),
-                getSharedPreferences("osmdroid", MODE_PRIVATE)
-        );
+        Configuration.getInstance().load(getApplicationContext(), getSharedPreferences("osmdroid", MODE_PRIVATE));
         Configuration.getInstance().setUserAgentValue(getPackageName());
-
         setContentView(R.layout.activity_main);
-
         geofencingClient = LocationServices.getGeofencingClient(this);
-
         initMap();
-
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -79,29 +86,15 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         });
     }
 
-    // ------------------------ //
-    //           MAPA           //
-    // ------------------------ //
     private void initMap() {
         map = findViewById(R.id.map);
         map.setMultiTouchControls(true);
-
-        XYTileSource cartoDbVoyager = new XYTileSource(
-                "CartoDB-Voyager", 0, 20, 256, ".png",
-                new String[]{
-                        "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
-                        "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
-                        "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
-                }
-        );
+        XYTileSource cartoDbVoyager = new XYTileSource("CartoDB-Voyager", 0, 20, 256, ".png", new String[]{"https://a.basemaps.cartocdn.com/rastertiles/voyager/", "https://b.basemaps.cartocdn.com/rastertiles/voyager/", "https://c.basemaps.cartocdn.com/rastertiles/voyager/"});
         map.setTileSource(cartoDbVoyager);
-
         map.getController().setZoom(18.0);
-
+        map.getController().setCenter(new GeoPoint(36.72016, -4.42034));
         if (hasFineLocationPermission()) {
             activateLocationOverlay();
-            if (myLocationOverlay != null) map.getController().setCenter(myLocationOverlay.getMyLocation());
-            else map.getController().setCenter(new GeoPoint(36.72016, -4.42034));
         } else {
             requestFineLocationPermission();
         }
@@ -112,16 +105,22 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
     private void activateLocationOverlay() {
         GpsMyLocationProvider provider = new GpsMyLocationProvider(this);
         provider.addLocationSource(LocationManager.NETWORK_PROVIDER);
-        myLocationOverlay = new MyLocationNewOverlay(provider, map);
+        myLocationOverlay = new MyLocationNewOverlay(provider, map) {
+            @Override
+            public void onLocationChanged(Location location, IMyLocationProvider source) {
+                super.onLocationChanged(location, source);
+                if (prefs.getBoolean("IS_PARKED", false) && System.currentTimeMillis() - lastRouteUpdateTime > 10000) {
+                    lastRouteUpdateTime = System.currentTimeMillis();
+                    updateRouteToCar();
+                }
+            }
+        };
         myLocationOverlay.enableMyLocation();
         myLocationOverlay.enableFollowLocation();
         myLocationOverlay.setDrawAccuracyEnabled(true);
         map.getOverlays().add(myLocationOverlay);
     }
 
-    // ------------------------ //
-    //         ACTIONS          //
-    // ------------------------ //
     public void centerLocationAction(View view) {
         if (myLocationOverlay != null && myLocationOverlay.getMyLocation() != null) {
             map.getController().animateTo(myLocationOverlay.getMyLocation());
@@ -153,16 +152,12 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
             }
             return;
         }
-
         boolean isParked = prefs.getBoolean("IS_PARKED", false);
         ParkingBottomSheet bottomSheet = ParkingBottomSheet.newInstance(isParked);
         bottomSheet.setListener(this);
         bottomSheet.show(getSupportFragmentManager(), "ParkingSheet");
     }
 
-    // ------------------------ //
-    //         METHODS          //
-    // ------------------------ //
     private void drawParkingMarker(GeoPoint location, String floor, String spot) {
         if (parkingMarker != null) map.getOverlays().remove(parkingMarker);
         parkingMarker = new Marker(map);
@@ -199,13 +194,57 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
             double lon = prefs.getFloat("LON", 0);
             if (lat != 0 && lon != 0) {
                 drawParkingMarker(new GeoPoint(lat, lon), prefs.getString("FLOOR", ""), prefs.getString("SPOT", ""));
+                myLocationOverlay.runOnFirstFix(this::updateRouteToCar);
             }
         }
     }
 
-    // ------------------------ //
-    //     GEOFENCING METHODS   //
-    // ------------------------ //
+    private void updateRouteToCar() {
+        if (myLocationOverlay == null || myLocationOverlay.getMyLocation() == null || parkingMarker == null) {
+            return;
+        }
+
+        GeoPoint startPoint = myLocationOverlay.getMyLocation();
+        GeoPoint endPoint = parkingMarker.getPosition();
+
+        executorService.execute(() -> {
+            ArrayList<GeoPoint> waypoints = new ArrayList<>();
+            waypoints.add(startPoint);
+            waypoints.add(endPoint);
+
+            RoadManager roadManager = new OSRMRoadManager(this, Configuration.getInstance().getUserAgentValue());
+            ((OSRMRoadManager)roadManager).setMean(OSRMRoadManager.MEAN_BY_FOOT);
+            final Road road = roadManager.getRoad(waypoints);
+
+            mainHandler.post(() -> {
+                if (road == null || road.mStatus != Road.STATUS_OK) {
+                    Log.e(TAG, "Error al obtener la ruta. Estado=" + (road != null ? road.mStatus : "null"));
+                    return;
+                }
+
+                if (roadOverlay != null) {
+                    map.getOverlays().remove(roadOverlay);
+                }
+
+                roadOverlay = RoadManager.buildRoadOverlay(road);
+                roadOverlay.getOutlinePaint().setColor(Color.BLUE);
+                roadOverlay.getOutlinePaint().setStrokeWidth(10);
+                map.getOverlays().add(0, roadOverlay);
+
+                if (!initialRouteZoomDone) {
+                    map.zoomToBoundingBox(road.mBoundingBox, true, 100);
+                    initialRouteZoomDone = true;
+
+                    if (map.getZoomLevelDouble() > 19.0) {
+                        map.getController().setZoom(19.0);
+                    }
+                }
+
+                map.invalidate();
+            });
+        });
+    }
+
     @SuppressLint("MissingPermission")
     private void addGeofence(LatLng latLng) {
         if (!hasFineLocationPermission() || !hasBackgroundLocationPermission()) {
@@ -239,9 +278,6 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
                 });
     }
 
-    // ------------------------ //
-    //      CICLO DE VIDA       //
-    // ------------------------ //
     @Override
     protected void onPause() {
         super.onPause();
@@ -254,9 +290,6 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         if (map != null) map.onResume();
     }
 
-    // ------------------------ //
-    //         PERMISOS         //
-    // ------------------------ //
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -301,23 +334,20 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             new AlertDialog.Builder(this)
-                .setTitle(R.string.dialog_background_permission_title)
-                .setMessage(R.string.dialog_background_permission_message)
-                .setPositiveButton(R.string.dialog_button_go_to_settings, (dialog, which) -> {
-                    Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    Uri uri = Uri.fromParts("package", getPackageName(), null);
-                    intent.setData(uri);
-                    startActivity(intent);
-                })
-                .setNegativeButton(R.string.dialog_button_not_now, (dialog, which) -> Toast.makeText(MainActivity.this, getString(R.string.toast_background_permission_denied), Toast.LENGTH_LONG).show())
-                .create()
-                .show();
+                    .setTitle(R.string.dialog_background_permission_title)
+                    .setMessage(R.string.dialog_background_permission_message)
+                    .setPositiveButton(R.string.dialog_button_go_to_settings, (dialog, which) -> {
+                        Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                        Uri uri = Uri.fromParts("package", getPackageName(), null);
+                        intent.setData(uri);
+                        startActivity(intent);
+                    })
+                    .setNegativeButton(R.string.dialog_button_not_now, (dialog, which) -> Toast.makeText(MainActivity.this, getString(R.string.toast_background_permission_denied), Toast.LENGTH_LONG).show())
+                    .create()
+                    .show();
         }
     }
 
-    // ------------------------ //
-    //     IMPLEMENTACIONES     //
-    // ------------------------ //
     @Override
     public void onParkingConfirmed(String floor, String spot) {
         if (!hasFineLocationPermission() || !hasBackgroundLocationPermission()) {
@@ -325,21 +355,22 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
             Toast.makeText(this, getString(R.string.toast_location_permission_needed_retry), Toast.LENGTH_LONG).show();
             return;
         }
-
         GeoPoint currentLocation = myLocationOverlay.getMyLocation();
         if (currentLocation == null) {
             Toast.makeText(this, getString(R.string.toast_could_not_get_location), Toast.LENGTH_SHORT).show();
             return;
         }
-
+        initialRouteZoomDone = false; // Reinicia el flag para el nuevo aparcamiento
         saveParkingData(currentLocation.getLatitude(), currentLocation.getLongitude(), floor, spot);
         drawParkingMarker(currentLocation, floor, spot);
         addGeofence(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
+        updateRouteToCar();
         Toast.makeText(this, getString(R.string.toast_parking_saved), Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onParkingDeleted() {
+        initialRouteZoomDone = false; // Reinicia el flag
         SharedPreferences.Editor editor = prefs.edit();
         editor.remove("LAT");
         editor.remove("LON");
@@ -351,8 +382,12 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         if (parkingMarker != null) {
             map.getOverlays().remove(parkingMarker);
             parkingMarker = null;
-            map.invalidate();
         }
+        if (roadOverlay != null) {
+            map.getOverlays().remove(roadOverlay);
+            roadOverlay = null;
+        }
+        map.invalidate();
         removeGeofence();
         Toast.makeText(this, getString(R.string.toast_parking_deleted), Toast.LENGTH_SHORT).show();
     }
