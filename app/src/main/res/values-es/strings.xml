@@ -15,4 +15,9 @@
     <string name="marker_floor_only">Planta: %1$s</string>
     <string name="marker_spot_only">Plaza: %1$s</string>
     <string name="marker_full">Planta: %1$s, Plaza: %2$s</string>
+    <string name="delete_parking_location_button">Borrar aparcamiento</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">Recordatorios de aparcamiento</string>
+    <string name="notification_text">¿Has cerrado el coche?</string>
 </resources>

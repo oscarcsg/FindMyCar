@@ -15,4 +15,9 @@
     <string name="marker_floor_only">Floor: %1$s</string>
     <string name="marker_spot_only">Spot: %1$s</string>
     <string name="marker_full">Floor: %1$s, Spot: %2$s</string>
+    <string name="delete_parking_location_button">Delete parking</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">Parking Reminders</string>
+    <string name="notification_text">Did you lock the car?</string>
 </resources>

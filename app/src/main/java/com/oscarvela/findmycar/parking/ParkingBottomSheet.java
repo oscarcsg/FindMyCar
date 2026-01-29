@@ -15,39 +15,57 @@ import com.oscarvela.findmycar.R;
 
 public class ParkingBottomSheet extends BottomSheetDialogFragment {
     private ParkingListener listener;
+    private boolean isParked = false;
+
     public void setListener(ParkingListener listener) {this.listener = listener;}
 
-    public ParkingBottomSheet() {}
+    public static ParkingBottomSheet newInstance(boolean isParked) {
+        ParkingBottomSheet fragment = new ParkingBottomSheet();
+        Bundle args = new Bundle();
+        args.putBoolean("isParked", isParked);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (getArguments() != null) {
+            isParked = getArguments().getBoolean("isParked", false);
+        }
+    }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        // Inflar el layout
-        View view = inflater.inflate(
-            R.layout.layout_bottom_sheet,
-            container,
-            false
-        );
+        View view = inflater.inflate(R.layout.layout_bottom_sheet, container, false);
 
-        // Buscar los elementos dentro de la vista
-            // Lo hago de forma interna en el mét odo para ahorrar algo de memoria para no
-            // tener objetos innecesarios siempre cargados
         TextInputEditText floorTxt = view.findViewById(R.id.floorTxt);
         TextInputEditText spotTxt = view.findViewById(R.id.spotTxt);
-        Button confirmTxt = view.findViewById(R.id.confirmUbiBtn);
+        Button confirmBtn = view.findViewById(R.id.confirmUbiBtn);
+        Button deleteBtn = view.findViewById(R.id.deleteParkingBtn);
 
-        confirmTxt.setOnClickListener(v -> {
+        // Configurar el OnClickListener para el botón de confirmar
+        confirmBtn.setOnClickListener(v -> {
             if (listener != null) {
-                // Pasarle los datos a MainActivity, que es quien tiene los métodos para guardar los datos
                 listener.onParkingConfirmed(
                     floorTxt.getText() != null ? floorTxt.getText().toString() : "",
                     spotTxt.getText() != null ? spotTxt.getText().toString() : ""
                 );
-
-                // Cerrar el panel
                 dismiss();
             }
         });
+
+        // Mostrar el botón de borrar solo si ya hay un coche aparcado
+        if (isParked) {
+            deleteBtn.setVisibility(View.VISIBLE);
+            deleteBtn.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onParkingDeleted();
+                }
+                dismiss();
+            });
+        }
 
         return view;
     }

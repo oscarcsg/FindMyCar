@@ -1,13 +1,19 @@
 package com.oscarvela.findmycar;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.location.LocationManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -20,8 +26,12 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.gms.location.GeofencingClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.model.LatLng;
 import com.oscarvela.findmycar.parking.ParkingBottomSheet;
 import com.oscarvela.findmycar.parking.ParkingListener;
+import com.oscarvela.findmycar.reminders.GeofenceHelper;
 
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.XYTileSource;
@@ -31,50 +41,35 @@ import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class MainActivity extends AppCompatActivity implements ParkingListener {
     // ------------------------ //
     //         ATRIBUTOS        //
     // ------------------------ //
+    private static final String TAG = "MainActivity";
     private MapView map = null;
     private MyLocationNewOverlay myLocationOverlay;
     private Marker parkingMarker = null;
-
-    private final int REQUEST_PERMISSIONS_REQUEST_CODE = 1;
-
+    private GeofencingClient geofencingClient;
     private SharedPreferences prefs;
-
-    // Botones y demás elementos gráficos de la interfaz
-//    private MaterialButton saveParkingBtn;
-//    private FloatingActionButton configBtn, centerLocationBtn;
-
-
+    private final int REQUEST_FINE_LOCATION_PERMISSIONS_REQUEST_CODE = 3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
 
-        // Iniciar las preferencias
         prefs = getSharedPreferences("FindMyCarPrefs", MODE_PRIVATE);
 
-        // Cargar OSM antes de inflar el layout
         Configuration.getInstance().load(
-            getApplicationContext(),
-            getSharedPreferences("osmdroid", MODE_PRIVATE)
+                getApplicationContext(),
+                getSharedPreferences("osmdroid", MODE_PRIVATE)
         );
         Configuration.getInstance().setUserAgentValue(getPackageName());
 
         setContentView(R.layout.activity_main);
 
-        // Linkar la parte gráfica con la lógica
-//        saveParkingBtn = findViewById(R.id.btnPark);
-//        configBtn = findViewById(R.id.btnConfig);
-//        centerLocationBtn = findViewById(R.id.btnCenter);
+        geofencingClient = LocationServices.getGeofencingClient(this);
 
-        // Iniciar el mapa
         initMap();
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -84,155 +79,116 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         });
     }
 
-
-
     // ------------------------ //
     //           MAPA           //
     // ------------------------ //
     private void initMap() {
-        // Inicializar el mapa
         map = findViewById(R.id.map);
-
-        // Activar el zoom pellizcando
         map.setMultiTouchControls(true);
 
-        // Estilo del mapa
         XYTileSource cartoDbVoyager = new XYTileSource(
-            "CartoDB-Voyager",// Nombre
-            0, 20,     // Zoom mínimo y máximo
-            256,                     // Tamaño de los cuadros (pixels)
-            ".png",                  // Formato de imagen
-            new String[]{
+                "CartoDB-Voyager", 0, 20, 256, ".png",
+                new String[]{
                     "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
                     "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
                     "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
-            }
+                }
         );
         map.setTileSource(cartoDbVoyager);
 
-        // Centrar el mapa en un punto por defecto (Málaga por ahora), luego pondré para que coja la ubi del usuario
         map.getController().setZoom(18.0);
         map.getController().setCenter(new GeoPoint(36.72016, -4.42034));
 
-        // pedir permisos
-        requestPermissionsIfNecessary(new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE // Necesario para android antiguo
-        });
-
-        // Activar ubicación actual
-        GpsMyLocationProvider provider = new GpsMyLocationProvider(this);
-        provider.addLocationSource(LocationManager.NETWORK_PROVIDER);
-
-        myLocationOverlay = new MyLocationNewOverlay(provider, map);
-        myLocationOverlay.enableMyLocation(); // Activar el punto azul de la ubicación actual
-        myLocationOverlay.enableFollowLocation(); // El mapa sigue al usuario al inicio
-        myLocationOverlay.setDrawAccuracyEnabled(true); // Dibujar radio de precisión
-
-        map.getOverlays().add(myLocationOverlay);
-
+        if (hasFineLocationPermission()) {
+            activateLocationOverlay();
+        } else {
+            requestFineLocationPermission();
+        }
         checkIfParkedAndRestore();
     }
 
-
+    @SuppressLint("MissingPermission")
+    private void activateLocationOverlay() {
+        GpsMyLocationProvider provider = new GpsMyLocationProvider(this);
+        provider.addLocationSource(LocationManager.NETWORK_PROVIDER);
+        myLocationOverlay = new MyLocationNewOverlay(provider, map);
+        myLocationOverlay.enableMyLocation();
+        myLocationOverlay.enableFollowLocation();
+        myLocationOverlay.setDrawAccuracyEnabled(true);
+        map.getOverlays().add(myLocationOverlay);
+    }
 
     // ------------------------ //
     //         ACTIONS          //
     // ------------------------ //
     public void centerLocationAction(View view) {
-        if (myLocationOverlay.getMyLocation() != null) {
+        if (myLocationOverlay != null && myLocationOverlay.getMyLocation() != null) {
             map.getController().animateTo(myLocationOverlay.getMyLocation());
             map.getController().setZoom(18.0);
         } else {
-            Toast.makeText(this, "Esperando señal GPS...", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Esperando señal GPS o permisos de ubicación.", Toast.LENGTH_SHORT).show();
         }
     }
 
     public void showConfigDialog(View view) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-        // Inflar layout
         View configDialogView = getLayoutInflater().inflate(R.layout.dialog_configuration, null);
         builder.setView(configDialogView);
-
         AlertDialog dialog = builder.create();
-
-        // Fondo transparente
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
-
-        // Dar acción al botón "Confirmar" del panel de configuración para que cierre el dialog (PROVISIONAL)
         configDialogView.findViewById(R.id.confirmBtn).setOnClickListener(v -> dialog.dismiss());
-
         dialog.show();
     }
 
     public void showParkingBottomSheet(View view) {
-        // Verificación de GPS
         if (myLocationOverlay == null || myLocationOverlay.getMyLocation() == null) {
-            Toast.makeText(this, "Espera a tener señal GPS", Toast.LENGTH_SHORT).show();
+            if (!hasFineLocationPermission()) {
+                Toast.makeText(this, "Por favor, concede el permiso de ubicación primero.", Toast.LENGTH_LONG).show();
+                checkAndRequestPermissions();
+            } else {
+                Toast.makeText(this, "Espera a tener señal GPS", Toast.LENGTH_SHORT).show();
+            }
             return;
         }
 
-        // Crear la instancia del panel de los datos del parking
-        ParkingBottomSheet bottomSheet = new ParkingBottomSheet();
-        bottomSheet.setListener(this); // Decirle que será MainActivity quien escuchará los eventos que lance
-
+        boolean isParked = prefs.getBoolean("IS_PARKED", false);
+        ParkingBottomSheet bottomSheet = ParkingBottomSheet.newInstance(isParked);
+        bottomSheet.setListener(this);
         bottomSheet.show(getSupportFragmentManager(), "ParkingSheet");
     }
-
-
 
     // ------------------------ //
     //         METHODS          //
     // ------------------------ //
     private void drawParkingMarker(GeoPoint location, String floor, String spot) {
-        // Quitar el marcador anterior si existe
         if (parkingMarker != null) map.getOverlays().remove(parkingMarker);
-
-        // Crear un nuevo marcador
         parkingMarker = new Marker(map);
         parkingMarker.setPosition(location);
-
-        // Ajustar la posicion del icono del marcador
         parkingMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
-
-        // Ponerle icono y titulo
         parkingMarker.setIcon(ContextCompat.getDrawable(this, R.drawable.ic_car_marker));
         parkingMarker.setTitle(formatMarkerMsg(floor, spot));
-
         map.getOverlays().add(parkingMarker);
-        map.invalidate(); // Obliga al mapa a redibujarse
+        map.invalidate();
     }
 
     private String formatMarkerMsg(String floor, String spot) {
         boolean hasFloor = !floor.isEmpty();
         boolean hasSpot = !spot.isEmpty();
-
-        // Caso 1: tiene planta y plaza
         if (hasFloor && hasSpot) return getString(R.string.marker_full, floor, spot);
-
-        // Caso 2: tiene solo planta
         if (hasFloor) return getString(R.string.marker_floor_only, floor);
-
-        // Caso 3: tiene solo plaza
         if (hasSpot) return getString(R.string.marker_spot_only, spot);
-
-        // Caso 4: no tiene nada
         return getString(R.string.marker_default);
     }
 
-    // Guardar datos en la memoria del telefono
     private void saveParkingData(double lat, double lon, String floor, String spot) {
         SharedPreferences.Editor editor = prefs.edit();
-
         editor.putFloat("LAT", (float) lat);
         editor.putFloat("LON", (float) lon);
         editor.putString("FLOOR", floor);
         editor.putString("SPOT", spot);
         editor.putBoolean("IS_PARKED", true);
-
         editor.apply();
     }
 
@@ -240,23 +196,49 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         if (prefs.getBoolean("IS_PARKED", false)) {
             double lat = prefs.getFloat("LAT", 0);
             double lon = prefs.getFloat("LON", 0);
-
             if (lat != 0 && lon != 0) {
-                drawParkingMarker(
-                    new GeoPoint(lat, lon),
-                    prefs.getString("FLOOR", ""),
-                    prefs.getString("SPOT", "")
-                );
+                drawParkingMarker(new GeoPoint(lat, lon), prefs.getString("FLOOR", ""), prefs.getString("SPOT", ""));
             }
         }
     }
 
+    // ------------------------ //
+    //     GEOFENCING METHODS   //
+    // ------------------------ //
+    @SuppressLint("MissingPermission")
+    private void addGeofence(LatLng latLng) {
+        if (!hasFineLocationPermission() || !hasBackgroundLocationPermission()) {
+            Toast.makeText(this, "No se tienen todos los permisos para crear el recordatorio.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        PendingIntent pendingIntent = GeofenceHelper.getPendingIntent(this);
+        geofencingClient.addGeofences(GeofenceHelper.getGeofencingRequest(latLng, pendingIntent), pendingIntent)
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Geovalla añadida con éxito.");
+                    Toast.makeText(MainActivity.this, "Recordatorio activado", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error al añadir la geovalla: " + e.getMessage());
+                    Toast.makeText(MainActivity.this, "No se pudo activar el recordatorio. Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+    }
 
+    private void removeGeofence() {
+        PendingIntent pendingIntent = GeofenceHelper.getPendingIntent(this);
+        geofencingClient.removeGeofences(pendingIntent)
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Geovalla eliminada con éxito.");
+                    Toast.makeText(MainActivity.this, "Recordatorio desactivado", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error al eliminar la geovalla: " + e.getMessage());
+                    Toast.makeText(MainActivity.this, "No se pudo desactivar el recordatorio. Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+    }
 
     // ------------------------ //
     //      CICLO DE VIDA       //
     // ------------------------ //
-    // Estos métodos son necesarios para OSM
     @Override
     protected void onPause() {
         super.onPause();
@@ -269,61 +251,106 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         if (map != null) map.onResume();
     }
 
-
-
     // ------------------------ //
     //         PERMISOS         //
     // ------------------------ //
-    private void requestPermissionsIfNecessary(String[] permissions) {
-        List<String> permissionsToRequest = new ArrayList<>();
-        for (String permission : permissions) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(permission);
-            }
-        }
-        if (!permissionsToRequest.isEmpty()) {
-            ActivityCompat.requestPermissions(
-                    this,
-                    permissionsToRequest.toArray(new String[0]),
-                    REQUEST_PERMISSIONS_REQUEST_CODE
-            );
-        }
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_PERMISSIONS_REQUEST_CODE) {
+        if (requestCode == REQUEST_FINE_LOCATION_PERMISSIONS_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Permisos concedidos. Cargando ubicación...", Toast.LENGTH_SHORT).show();
-                // Aquí irá la activación del "Mi ubicación"
+                Toast.makeText(this, "Permiso de ubicación concedido.", Toast.LENGTH_SHORT).show();
+                activateLocationOverlay();
+                checkAndRequestBackgroundPermission();
             } else {
-                Toast.makeText(this, "Necesitas dar permisos para usar la app", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "El permiso de ubicación es necesario para la mayoría de funciones.", Toast.LENGTH_LONG).show();
             }
         }
     }
 
+    private boolean hasFineLocationPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
 
+    private boolean hasBackgroundLocationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
+
+    private void requestFineLocationPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.POST_NOTIFICATIONS}, REQUEST_FINE_LOCATION_PERMISSIONS_REQUEST_CODE);
+    }
+
+    private void checkAndRequestPermissions() {
+        if (!hasFineLocationPermission()) {
+            requestFineLocationPermission();
+        } else {
+            checkAndRequestBackgroundPermission();
+        }
+    }
+
+    private void checkAndRequestBackgroundPermission() {
+        if (hasBackgroundLocationPermission()) {
+            Toast.makeText(this, "Ya tienes todos los permisos necesarios para los recordatorios.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Permiso Adicional Requerido")
+                    .setMessage("Para que los recordatorios funcionen cuando la app está cerrada, necesitas conceder el permiso de ubicación 'Permitir todo el tiempo'.\n\nPor favor, pulsa 'Ir a Ajustes' y en la sección de 'Permisos' > 'Ubicación', selecciona 'Permitir todo el tiempo'.")
+                    .setPositiveButton("Ir a Ajustes", (dialog, which) -> {
+                        Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                        Uri uri = Uri.fromParts("package", getPackageName(), null);
+                        intent.setData(uri);
+                        startActivity(intent);
+                    })
+                    .setNegativeButton("Ahora no", (dialog, which) -> Toast.makeText(MainActivity.this, "Sin el permiso de segundo plano, los recordatorios no funcionarán.", Toast.LENGTH_LONG).show())
+                    .create()
+                    .show();
+        }
+    }
 
     // ------------------------ //
     //     IMPLEMENTACIONES     //
     // ------------------------ //
     @Override
     public void onParkingConfirmed(String floor, String spot) {
-        // Ubicación actual
+        if (!hasFineLocationPermission() || !hasBackgroundLocationPermission()) {
+            checkAndRequestPermissions();
+            Toast.makeText(this, "Se necesitan permisos de ubicación. Por favor, concédelos y vuelve a intentarlo.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         GeoPoint currentLocation = myLocationOverlay.getMyLocation();
+        if (currentLocation == null) {
+            Toast.makeText(this, "No se pudo obtener la ubicación actual.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        // Guardar la ubicación
-        saveParkingData(
-            currentLocation.getLatitude(),
-            currentLocation.getLongitude(),
-            floor,
-            spot
-        );
-
-        // Pintar en el mapa
+        saveParkingData(currentLocation.getLatitude(), currentLocation.getLongitude(), floor, spot);
         drawParkingMarker(currentLocation, floor, spot);
+        addGeofence(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
+        Toast.makeText(this, "Aparcamiento guardado", Toast.LENGTH_SHORT).show();
+    }
 
-        Toast.makeText(this, "¡Aparcado en Planta " + floor + "!", Toast.LENGTH_SHORT).show();
+    @Override
+    public void onParkingDeleted() {
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.remove("LAT");
+        editor.remove("LON");
+        editor.remove("FLOOR");
+        editor.remove("SPOT");
+        editor.putBoolean("IS_PARKED", false);
+        editor.apply();
+
+        if (parkingMarker != null) {
+            map.getOverlays().remove(parkingMarker);
+            parkingMarker = null;
+            map.invalidate();
+        }
+        removeGeofence();
+        Toast.makeText(this, "Aparcamiento eliminado", Toast.LENGTH_SHORT).show();
     }
 }
