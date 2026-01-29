@@ -19,6 +19,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -56,8 +57,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity implements ParkingListener {
-    // Atributos
+    // Atributos y Constantes
     private static final String TAG = "MainActivity";
+    public static final String PREF_GEOFENCE_REMINDER_ENABLED = "PREF_GEOFENCE_REMINDER_ENABLED";
+    public static final String PREF_AUTO_OPEN_DETAILS_ENABLED = "PREF_AUTO_OPEN_DETAILS_ENABLED";
+
     private MapView map = null;
     private MyLocationNewOverlay myLocationOverlay;
     private Marker parkingMarker = null;
@@ -91,17 +95,13 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
     private void initMap() {
         map = findViewById(R.id.map);
         map.setMultiTouchControls(true);
-
         XYTileSource cartoDbVoyager = new XYTileSource("CartoDB-Voyager", 0, 20, 256, ".png", new String[]{"https://a.basemaps.cartocdn.com/rastertiles/voyager/", "https://b.basemaps.cartocdn.com/rastertiles/voyager/", "https://c.basemaps.cartocdn.com/rastertiles/voyager/"});
         map.setTileSource(cartoDbVoyager);
-
         map.getController().setZoom(18.0);
         map.getController().setCenter(new GeoPoint(36.72016, -4.42034));
-
         CompassOverlay compassOverlay = new CompassOverlay(this, new InternalCompassOrientationProvider(this), map);
         compassOverlay.enableCompass();
         map.getOverlays().add(compassOverlay);
-
         if (hasFineLocationPermission()) {
             activateLocationOverlay();
         } else {
@@ -141,17 +141,11 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
     }
 
     public void rotateLeft(View view) {
-        if (map != null) {
-            float currentOrientation = map.getMapOrientation();
-            map.setMapOrientation(currentOrientation - 15);
-        }
+        if (map != null) map.setMapOrientation(map.getMapOrientation() - 15);
     }
 
     public void rotateRight(View view) {
-        if (map != null) {
-            float currentOrientation = map.getMapOrientation();
-            map.setMapOrientation(currentOrientation + 15);
-        }
+        if (map != null) map.setMapOrientation(map.getMapOrientation() + 15);
     }
 
     public void showConfigDialog(View view) {
@@ -159,6 +153,16 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         View configDialogView = getLayoutInflater().inflate(R.layout.dialog_configuration, null);
         builder.setView(configDialogView);
         AlertDialog dialog = builder.create();
+
+        SwitchMaterial walkAwaySwitch = configDialogView.findViewById(R.id.walkAwaySwitch);
+        SwitchMaterial openDetailsSwitch = configDialogView.findViewById(R.id.openDetailsSwitch);
+
+        walkAwaySwitch.setChecked(prefs.getBoolean(PREF_GEOFENCE_REMINDER_ENABLED, true));
+        openDetailsSwitch.setChecked(prefs.getBoolean(PREF_AUTO_OPEN_DETAILS_ENABLED, true));
+
+        walkAwaySwitch.setOnCheckedChangeListener((buttonView, isChecked) -> prefs.edit().putBoolean(PREF_GEOFENCE_REMINDER_ENABLED, isChecked).apply());
+        openDetailsSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> prefs.edit().putBoolean(PREF_AUTO_OPEN_DETAILS_ENABLED, isChecked).apply());
+
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
@@ -176,10 +180,16 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
             }
             return;
         }
-        boolean isParked = prefs.getBoolean("IS_PARKED", false);
-        ParkingBottomSheet bottomSheet = ParkingBottomSheet.newInstance(isParked);
-        bottomSheet.setListener(this);
-        bottomSheet.show(getSupportFragmentManager(), "ParkingSheet");
+
+        if (prefs.getBoolean(PREF_AUTO_OPEN_DETAILS_ENABLED, true)) {
+            boolean isParked = prefs.getBoolean("IS_PARKED", false);
+            ParkingBottomSheet bottomSheet = ParkingBottomSheet.newInstance(isParked);
+            bottomSheet.setListener(this);
+            bottomSheet.show(getSupportFragmentManager(), "ParkingSheet");
+        } else {
+            onParkingConfirmed("", "");
+            Toast.makeText(this, getString(R.string.quick_parking_saved), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void drawParkingMarker(GeoPoint location, String floor, String spot) {
@@ -227,44 +237,35 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         if (myLocationOverlay == null || myLocationOverlay.getMyLocation() == null || parkingMarker == null) {
             return;
         }
-
         GeoPoint startPoint = myLocationOverlay.getMyLocation();
         GeoPoint endPoint = parkingMarker.getPosition();
-
         executorService.execute(() -> {
             ArrayList<GeoPoint> waypoints = new ArrayList<>();
             waypoints.add(startPoint);
             waypoints.add(endPoint);
-
             RoadManager roadManager = new OSRMRoadManager(this, Configuration.getInstance().getUserAgentValue());
             ((OSRMRoadManager)roadManager).setMean(OSRMRoadManager.MEAN_BY_FOOT);
             final Road road = roadManager.getRoad(waypoints);
-
             mainHandler.post(() -> {
                 if (road == null || road.mStatus != Road.STATUS_OK) {
                     Log.e(TAG, "Error al obtener la ruta. Estado=" + (road != null ? road.mStatus : "null"));
                     return;
                 }
-
                 if (roadOverlay != null) {
                     map.getOverlays().remove(roadOverlay);
                 }
-
                 roadOverlay = RoadManager.buildRoadOverlay(road);
                 roadOverlay.getOutlinePaint().setColor(Color.BLUE);
                 roadOverlay.getOutlinePaint().setStrokeWidth(10);
                 map.getOverlays().add(0, roadOverlay);
-
                 double distance = startPoint.distanceToAsDouble(endPoint);
-                if (!initialRouteZoomDone && distance > 50) {
+                if (!initialRouteZoomDone && distance > 20) {
                     map.zoomToBoundingBox(road.mBoundingBox, true, 100);
                     initialRouteZoomDone = true;
-
                     if (map.getZoomLevelDouble() > 19.0) {
                         map.getController().setZoom(19.0);
                     }
                 }
-
                 map.invalidate();
             });
         });
@@ -272,6 +273,10 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
 
     @SuppressLint("MissingPermission")
     private void addGeofence(LatLng latLng) {
+        if (!prefs.getBoolean(PREF_GEOFENCE_REMINDER_ENABLED, true)) {
+            Log.d(TAG, "Geofence reminder is disabled by user preference.");
+            return;
+        }
         if (!hasFineLocationPermission() || !hasBackgroundLocationPermission()) {
             Toast.makeText(this, getString(R.string.toast_missing_permissions_for_reminder), Toast.LENGTH_LONG).show();
             return;
@@ -390,7 +395,7 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         drawParkingMarker(currentLocation, floor, spot);
         addGeofence(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
         updateRouteToCar();
-        Toast.makeText(this, getString(R.string.toast_parking_saved), Toast.LENGTH_SHORT).show();
+        // El Toast se muestra desde donde se llama a este método
     }
 
     @Override

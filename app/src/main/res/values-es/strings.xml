@@ -42,4 +42,5 @@
     <string name="toast_could_not_get_location">No se pudo obtener la ubicación actual.</string>
     <string name="toast_parking_saved">Aparcamiento guardado</string>
     <string name="toast_parking_deleted">Aparcamiento eliminado</string>
+    <string name="quick_parking_saved">Aparcamiento rápido guardado en la ubicación actual</string>
 </resources>

@@ -42,4 +42,5 @@
     <string name="toast_could_not_get_location">Couldn\'t get current location.</string>
     <string name="toast_parking_saved">Parking saved</string>
     <string name="toast_parking_deleted">Parking deleted</string>
+    <string name="quick_parking_saved">Quick parking saved at current location</string>
 </resources>

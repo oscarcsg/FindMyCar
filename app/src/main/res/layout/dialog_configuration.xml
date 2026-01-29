@@ -2,7 +2,6 @@
 <!-- dialog_configuration.xml -->
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="320dp"
     android:layout_height="wrap_content"
     app:cardCornerRadius="16dp"
@@ -12,8 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="22dp"
-        tools:ignore="UseSwitchCompatOrMaterialXml">
+        android:padding="22dp">
 
         <TextView
             android:layout_width="wrap_content"
@@ -23,19 +21,19 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <Switch
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/walkAwaySwitch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
             android:checked="true"
             android:textSize="16sp"
             android:text="@string/recordatory_switch_lbl" />
 
-        <Switch
+        <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/openDetailsSwitch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:checked="true"
             android:textSize="16sp"
             android:text="@string/open_parking_details_lbl" />
