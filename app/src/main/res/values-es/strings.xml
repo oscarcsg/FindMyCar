@@ -20,4 +20,26 @@
     <!-- Notifications -->
     <string name="notification_channel_name">Recordatorios de aparcamiento</string>
     <string name="notification_text">¿Has cerrado el coche?</string>
+
+    <!-- Toasts y Diálogos -->
+    <string name="toast_waiting_for_gps_or_permission">Esperando señal GPS o permisos de ubicación.</string>
+    <string name="toast_grant_location_permission_first">Por favor, concede el permiso de ubicación primero.</string>
+    <string name="toast_wait_for_gps">Espera a tener señal GPS</string>
+    <string name="toast_missing_permissions_for_reminder">No se tienen todos los permisos para crear el recordatorio.</string>
+    <string name="toast_reminder_activated">Recordatorio activado</string>
+    <string name="toast_reminder_activation_failed">No se pudo activar el recordatorio. Error: %s</string>
+    <string name="toast_reminder_deactivated">Recordatorio desactivado</string>
+    <string name="toast_reminder_deactivation_failed">No se pudo desactivar el recordatorio. Error: %s</string>
+    <string name="toast_location_permission_granted">Permiso de ubicación concedido.</string>
+    <string name="toast_location_permission_required">El permiso de ubicación es necesario para la mayoría de funciones.</string>
+    <string name="toast_all_permissions_granted">Ya tienes todos los permisos necesarios para los recordatorios.</string>
+    <string name="dialog_background_permission_title">Permiso Adicional Requerido</string>
+    <string name="dialog_background_permission_message">"Para que los recordatorios funcionen cuando la app está cerrada, necesitas conceder el permiso de ubicación 'Permitir todo el tiempo'.\n\nPor favor, pulsa 'Ir a Ajustes' y en la sección de 'Permisos' > 'Ubicación', selecciona 'Permitir todo el tiempo'."</string>
+    <string name="dialog_button_go_to_settings">Ir a Ajustes</string>
+    <string name="dialog_button_not_now">Ahora no</string>
+    <string name="toast_background_permission_denied">Sin el permiso de segundo plano, los recordatorios no funcionarán.</string>
+    <string name="toast_location_permission_needed_retry">Se necesitan permisos de ubicación. Por favor, concédelos y vuelve a intentarlo.</string>
+    <string name="toast_could_not_get_location">No se pudo obtener la ubicación actual.</string>
+    <string name="toast_parking_saved">Aparcamiento guardado</string>
+    <string name="toast_parking_deleted">Aparcamiento eliminado</string>
 </resources>

@@ -89,9 +89,9 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         XYTileSource cartoDbVoyager = new XYTileSource(
                 "CartoDB-Voyager", 0, 20, 256, ".png",
                 new String[]{
-                    "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
-                    "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
-                    "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
+                        "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
+                        "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
+                        "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
                 }
         );
         map.setTileSource(cartoDbVoyager);
@@ -126,7 +126,7 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
             map.getController().animateTo(myLocationOverlay.getMyLocation());
             map.getController().setZoom(18.0);
         } else {
-            Toast.makeText(this, "Esperando señal GPS o permisos de ubicación.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.toast_waiting_for_gps_or_permission), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -145,10 +145,10 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
     public void showParkingBottomSheet(View view) {
         if (myLocationOverlay == null || myLocationOverlay.getMyLocation() == null) {
             if (!hasFineLocationPermission()) {
-                Toast.makeText(this, "Por favor, concede el permiso de ubicación primero.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, getString(R.string.toast_grant_location_permission_first), Toast.LENGTH_LONG).show();
                 checkAndRequestPermissions();
             } else {
-                Toast.makeText(this, "Espera a tener señal GPS", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_wait_for_gps), Toast.LENGTH_SHORT).show();
             }
             return;
         }
@@ -208,18 +208,19 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
     @SuppressLint("MissingPermission")
     private void addGeofence(LatLng latLng) {
         if (!hasFineLocationPermission() || !hasBackgroundLocationPermission()) {
-            Toast.makeText(this, "No se tienen todos los permisos para crear el recordatorio.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.toast_missing_permissions_for_reminder), Toast.LENGTH_LONG).show();
             return;
         }
         PendingIntent pendingIntent = GeofenceHelper.getPendingIntent(this);
         geofencingClient.addGeofences(GeofenceHelper.getGeofencingRequest(latLng, pendingIntent), pendingIntent)
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Geovalla añadida con éxito.");
-                    Toast.makeText(MainActivity.this, "Recordatorio activado", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, getString(R.string.toast_reminder_activated), Toast.LENGTH_SHORT).show();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error al añadir la geovalla: " + e.getMessage());
-                    Toast.makeText(MainActivity.this, "No se pudo activar el recordatorio. Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    String errorMessage = getString(R.string.toast_reminder_activation_failed, e.getMessage());
+                    Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
                 });
     }
 
@@ -228,11 +229,12 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         geofencingClient.removeGeofences(pendingIntent)
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Geovalla eliminada con éxito.");
-                    Toast.makeText(MainActivity.this, "Recordatorio desactivado", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, getString(R.string.toast_reminder_deactivated), Toast.LENGTH_SHORT).show();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error al eliminar la geovalla: " + e.getMessage());
-                    Toast.makeText(MainActivity.this, "No se pudo desactivar el recordatorio. Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    String errorMessage = getString(R.string.toast_reminder_deactivation_failed, e.getMessage());
+                    Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
                 });
     }
 
@@ -259,11 +261,11 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_FINE_LOCATION_PERMISSIONS_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Permiso de ubicación concedido.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_location_permission_granted), Toast.LENGTH_SHORT).show();
                 activateLocationOverlay();
                 checkAndRequestBackgroundPermission();
             } else {
-                Toast.makeText(this, "El permiso de ubicación es necesario para la mayoría de funciones.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, getString(R.string.toast_location_permission_required), Toast.LENGTH_LONG).show();
             }
         }
     }
@@ -293,22 +295,22 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
 
     private void checkAndRequestBackgroundPermission() {
         if (hasBackgroundLocationPermission()) {
-            Toast.makeText(this, "Ya tienes todos los permisos necesarios para los recordatorios.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.toast_all_permissions_granted), Toast.LENGTH_SHORT).show();
             return;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             new AlertDialog.Builder(this)
-                    .setTitle("Permiso Adicional Requerido")
-                    .setMessage("Para que los recordatorios funcionen cuando la app está cerrada, necesitas conceder el permiso de ubicación 'Permitir todo el tiempo'.\n\nPor favor, pulsa 'Ir a Ajustes' y en la sección de 'Permisos' > 'Ubicación', selecciona 'Permitir todo el tiempo'.")
-                    .setPositiveButton("Ir a Ajustes", (dialog, which) -> {
-                        Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                        Uri uri = Uri.fromParts("package", getPackageName(), null);
-                        intent.setData(uri);
-                        startActivity(intent);
-                    })
-                    .setNegativeButton("Ahora no", (dialog, which) -> Toast.makeText(MainActivity.this, "Sin el permiso de segundo plano, los recordatorios no funcionarán.", Toast.LENGTH_LONG).show())
-                    .create()
-                    .show();
+                .setTitle(R.string.dialog_background_permission_title)
+                .setMessage(R.string.dialog_background_permission_message)
+                .setPositiveButton(R.string.dialog_button_go_to_settings, (dialog, which) -> {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    Uri uri = Uri.fromParts("package", getPackageName(), null);
+                    intent.setData(uri);
+                    startActivity(intent);
+                })
+                .setNegativeButton(R.string.dialog_button_not_now, (dialog, which) -> Toast.makeText(MainActivity.this, getString(R.string.toast_background_permission_denied), Toast.LENGTH_LONG).show())
+                .create()
+                .show();
         }
     }
 
@@ -319,20 +321,20 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
     public void onParkingConfirmed(String floor, String spot) {
         if (!hasFineLocationPermission() || !hasBackgroundLocationPermission()) {
             checkAndRequestPermissions();
-            Toast.makeText(this, "Se necesitan permisos de ubicación. Por favor, concédelos y vuelve a intentarlo.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.toast_location_permission_needed_retry), Toast.LENGTH_LONG).show();
             return;
         }
 
         GeoPoint currentLocation = myLocationOverlay.getMyLocation();
         if (currentLocation == null) {
-            Toast.makeText(this, "No se pudo obtener la ubicación actual.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.toast_could_not_get_location), Toast.LENGTH_SHORT).show();
             return;
         }
 
         saveParkingData(currentLocation.getLatitude(), currentLocation.getLongitude(), floor, spot);
         drawParkingMarker(currentLocation, floor, spot);
         addGeofence(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
-        Toast.makeText(this, "Aparcamiento guardado", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.toast_parking_saved), Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -351,6 +353,6 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
             map.invalidate();
         }
         removeGeofence();
-        Toast.makeText(this, "Aparcamiento eliminado", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.toast_parking_deleted), Toast.LENGTH_SHORT).show();
     }
 }

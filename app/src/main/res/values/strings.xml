@@ -20,4 +20,26 @@
     <!-- Notifications -->
     <string name="notification_channel_name">Parking Reminders</string>
     <string name="notification_text">Did you lock the car?</string>
+
+    <!-- Toasts and Dialogs -->
+    <string name="toast_waiting_for_gps_or_permission">Waiting for GPS signal or location permission.</string>
+    <string name="toast_grant_location_permission_first">Please, grant location permission first.</string>
+    <string name="toast_wait_for_gps">Waiting for GPS signal...</string>
+    <string name="toast_missing_permissions_for_reminder">Not all permissions are granted to create the reminder.</string>
+    <string name="toast_reminder_activated">Reminder activated</string>
+    <string name="toast_reminder_activation_failed">Couldn\'t activate reminder. Error: %s</string>
+    <string name="toast_reminder_deactivated">Reminder deactivated</string>
+    <string name="toast_reminder_deactivation_failed">Couldn\'t deactivate reminder. Error: %s</string>
+    <string name="toast_location_permission_granted">Location permission granted.</string>
+    <string name="toast_location_permission_required">Location permission is required for most features.</string>
+    <string name="toast_all_permissions_granted">You already have all necessary permissions for reminders.</string>
+    <string name="dialog_background_permission_title">Additional Permission Required</string>
+    <string name="dialog_background_permission_message">"For reminders to work when the app is closed, you need to grant 'Allow all the time' location permission.\n\nPlease tap 'Go to Settings' and in the 'Permissions' > 'Location' section, select 'Allow all the time'."</string>
+    <string name="dialog_button_go_to_settings">Go to Settings</string>
+    <string name="dialog_button_not_now">Not now</string>
+    <string name="toast_background_permission_denied">Without background location permission, reminders won\'t work.</string>
+    <string name="toast_location_permission_needed_retry">Location permissions are needed. Please grant them and try again.</string>
+    <string name="toast_could_not_get_location">Couldn\'t get current location.</string>
+    <string name="toast_parking_saved">Parking saved</string>
+    <string name="toast_parking_deleted">Parking deleted</string>
 </resources>
