@@ -2,7 +2,7 @@ package com.oscarvela.findmycar;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -33,6 +33,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.google.android.gms.location.GeofencingClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.oscarvela.findmycar.parking.ParkingBottomSheet;
 import com.oscarvela.findmycar.parking.ParkingListener;
 import com.oscarvela.findmycar.reminders.GeofenceHelper;
@@ -149,7 +150,7 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
     }
 
     public void showConfigDialog(View view) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         View configDialogView = getLayoutInflater().inflate(R.layout.dialog_configuration, null);
         builder.setView(configDialogView);
         AlertDialog dialog = builder.create();
@@ -163,9 +164,6 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         walkAwaySwitch.setOnCheckedChangeListener((buttonView, isChecked) -> prefs.edit().putBoolean(PREF_GEOFENCE_REMINDER_ENABLED, isChecked).apply());
         openDetailsSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> prefs.edit().putBoolean(PREF_AUTO_OPEN_DETAILS_ENABLED, isChecked).apply());
 
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        }
         configDialogView.findViewById(R.id.confirmBtn).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }
@@ -363,7 +361,7 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
             return;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            new AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle(R.string.dialog_background_permission_title)
                     .setMessage(R.string.dialog_background_permission_message)
                     .setPositiveButton(R.string.dialog_button_go_to_settings, (dialog, which) -> {
@@ -395,7 +393,6 @@ public class MainActivity extends AppCompatActivity implements ParkingListener {
         drawParkingMarker(currentLocation, floor, spot);
         addGeofence(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()));
         updateRouteToCar();
-        // El Toast se muestra desde donde se llama a este método
     }
 
     @Override

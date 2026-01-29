@@ -1,55 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- dialog_configuration.xml -->
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="320dp"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="0dp">
+    android:orientation="vertical"
+    android:padding="22dp">
 
-    <LinearLayout
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="@string/config_lbl"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/walkAwaySwitch"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="22dp">
+        android:layout_height="wrap_content"
+        android:checked="true"
+        android:textSize="16sp"
+        android:text="@string/recordatory_switch_lbl" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:text="@string/config_lbl"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/openDetailsSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:checked="true"
+        android:textSize="16sp"
+        android:text="@string/open_parking_details_lbl" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/walkAwaySwitch"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:textSize="16sp"
-            android:text="@string/recordatory_switch_lbl" />
+    <com.google.android.material.divider.MaterialDivider
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/openDetailsSwitch"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:checked="true"
-            android:textSize="16sp"
-            android:text="@string/open_parking_details_lbl" />
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/confirmBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/confirm_btn" />
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
-            android:background="#E0E0E0" />
-
-        <Button
-            android:id="@+id/confirmBtn"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/confirm_btn" />
-
-    </LinearLayout>
-</androidx.cardview.widget.CardView>
+</LinearLayout>
